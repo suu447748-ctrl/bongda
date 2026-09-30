@@ -1,0 +1,75 @@
+import requests
+import json
+
+# 1. Cấu hình Page Access Token
+PAGE_ACCESS_TOKEN = "EAAXdtQv3Cw8BSv5NxG4eDxIuZBdYwJqQY2f9vJWX9lZCLFQGX0DG9euL3qodhM6Tddsay4O8bZBYvmPBFGeWEbgc77cAEjj4ZBPjqI7X38ZCgn4wGVp4NWkd9cSpgrnZCxS4eRNixubwrXne9Nnj8QZAYSZAZBZAfklVSg9OeSBXhcImJxdXeDzoyEOhQTABbf5v8RF2AYiaZCAED7Bp9Cj2s3By9xbnGfcTsOKkSgHsFfHBkD7BmvKOahKHupzDDNNpbaZCTZCGMra51FTDAp96oNjti"
+GRAPH_API_VERSION = "v20.0"
+
+def get_page_info(token):
+    """Lấy thông tin ID và Tên của Fanpage từ Token"""
+    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/me"
+    params = {
+        "access_token": token,
+        "fields": "id,name"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ Lỗi xác thực token: {response.text}")
+        return None
+
+def post_to_facebook_page(message, link=None, image_url=None):
+    """Đăng bài viết lên Fanpage"""
+    page_info = get_page_info(PAGE_ACCESS_TOKEN)
+    if not page_info:
+        print("❌ Không thể lấy thông tin Page. Vui lòng kiểm tra lại token!")
+        return False
+    
+    page_id = page_info.get("id")
+    page_name = page_info.get("name")
+    print(f"👉 Đang kết nối tới Fanpage: {page_name} (ID: {page_id})")
+
+    # Trường hợp 1: Đăng bài kèm ảnh
+    if image_url:
+        post_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{page_id}/photos"
+        payload = {
+            "caption": message,
+            "url": image_url,
+            "access_token": PAGE_ACCESS_TOKEN
+        }
+    # Trường hợp 2: Đăng bài văn bản / link
+    else:
+        post_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{page_id}/feed"
+        payload = {
+            "message": message,
+            "access_token": PAGE_ACCESS_TOKEN
+        }
+        if link:
+            payload["link"] = link
+
+    response = requests.post(post_url, data=payload)
+    result = response.json()
+
+    if response.status_code == 200 and ("id" in result or "post_id" in result):
+        post_id = result.get("post_id") or result.get("id")
+        print(f"✅ Đăng bài thành công! ID bài viết: {post_id}")
+        return True
+    else:
+        print(f"❌ Lỗi phản hồi từ Facebook: {json.dumps(result, ensure_ascii=False)}")
+        return False
+
+# --- THỬ NGHIỆM ĐĂNG BÀI ---
+if __name__ == "__main__":
+    noi_dung_bai_viet = """🔥 TIN NÓNG THỂ THAO
+
+Enzo Fernandez: Kẻ phản diện ngạo nghễ của Ngoại hạng Anh!
+Sau những ồn ào, tiền vệ của Chelsea tiếp tục thể hiện phong độ ấn tượng trên sân cỏ...
+
+#Chelsea #EnzoFernandez #PremierLeague #BongDa"""
+
+    # Gọi hàm đăng bài
+    post_to_facebook_page(
+        message=noi_dung_bai_viet,
+        link="https://dantri.com.vn" # Có thể để None nếu không đính kèm link
+    )
